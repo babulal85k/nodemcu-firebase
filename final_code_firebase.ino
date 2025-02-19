@@ -3,14 +3,7 @@
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 #include <DHT.h>
-
-// Configuration (Move to a separate config.h file for better security)
-const char* ssid = "Shyam_Nivas_AirFiber";       // WiFi SSID
-const char* password = "12345678@Jio";           // WiFi Password
-const char* firebaseHost = "nodemcudata-e91f1-default-rtdb.firebaseio.com"; // Firebase Host
-const char* firebaseApiKey = "AIzaSyAwU3aap1IiiQUniNeW-p-wTurAgGSGzxc";     // Firebase API Key
-const char* firebaseEmail = "babulalmandal85k@gmail.com";                   // Firebase Email
-const char* firebasePassword = "516273@aD";                                // Firebase Password
+#include "config.h"  // Include credentials
 
 // Pin Definitions
 #define RELAY1 5      // PIR-controlled relay (GPIO5 - D1)
@@ -23,7 +16,7 @@ const char* firebasePassword = "516273@aD";                                // Fi
 
 // Initialize Objects
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 19800, 60000); // NTP client for time synchronization
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 19800, 60000);
 FirebaseConfig firebaseConfig;
 FirebaseAuth firebaseAuth;
 FirebaseData firebaseData;
@@ -39,24 +32,12 @@ bool relay2State = false;
 bool relay3State = false;
 
 // Constants
-const unsigned long debounceDelay = 200;  // Debounce delay for PIR sensor (200ms)
-const unsigned long firebaseUpdateInterval = 30000; // Firebase update interval (30s)
-const unsigned long sensorReadInterval = 10000;    // Sensor read interval (10s)
-const unsigned long loopInterval = 5000;           // Main loop interval (5s)
-
-// Function Prototypes
-void connectToWiFi();
-void initializeFirebase();
-void handlePirSensor();
-void handleFirebaseRelays();
-void handleScheduledRelay2();
-void readSensorData();
-void updateFirebaseStatus();
+const unsigned long debounceDelay = 200;
+const unsigned long firebaseUpdateInterval = 30000;
+const unsigned long sensorReadInterval = 10000;
 
 void setup() {
     Serial.begin(115200);
-
-    // Initialize GPIOs
     pinMode(RELAY1, OUTPUT);
     pinMode(RELAY2, OUTPUT);
     pinMode(RELAY3, OUTPUT);
@@ -65,45 +46,29 @@ void setup() {
     digitalWrite(RELAY2, LOW);
     digitalWrite(RELAY3, LOW);
 
-    // Connect to WiFi
     connectToWiFi();
-
-    // Initialize Firebase
     initializeFirebase();
-
-    // Initialize Time Client
     timeClient.begin();
-
-    // Initialize DHT Sensor
     dht.begin();
 }
 
 void loop() {
     timeClient.update();
-
-    // Handle PIR Sensor
     handlePirSensor();
-
-    // Handle Firebase Relay Control
     handleFirebaseRelays();
-
-    // Handle Scheduled Relay2 Control
     handleScheduledRelay2();
 
-    // Read Sensor Data
     if (millis() - lastSensorRead >= sensorReadInterval) {
         readSensorData();
         lastSensorRead = millis();
     }
 
-    // Update Firebase Online Status
     if (millis() - lastFirebaseUpdate >= firebaseUpdateInterval) {
         updateFirebaseStatus();
         lastFirebaseUpdate = millis();
     }
 
-    // Non-blocking delay
-    delay(loopInterval);
+    ESP.wdtFeed();  // Prevent watchdog timer reset
 }
 
 // Connect to WiFi
@@ -127,17 +92,11 @@ void initializeFirebase() {
     firebaseAuth.user.email = firebaseEmail;
     firebaseAuth.user.password = firebasePassword;
 
-    // Initialize Firebase
     Firebase.begin(&firebaseConfig, &firebaseAuth);
     Firebase.reconnectWiFi(true);
     firebaseData.setBSSLBufferSize(1024, 1024);
 
-    // Check Firebase connection status
-    if (Firebase.ready()) {
-        Serial.println("Firebase initialized successfully!");
-    } else {
-        Serial.println("Firebase initialization failed!");
-    }
+    Serial.println(Firebase.ready() ? "Firebase initialized successfully!" : "Firebase initialization failed!");
 }
 
 // Handle PIR Sensor
@@ -169,8 +128,6 @@ void handleFirebaseRelays() {
                 Firebase.setInt(firebaseData, "/SensorData/Relay2_Status", relayState);
                 Serial.println(relayState ? "Relay2 ON" : "Relay2 OFF");
             }
-        } else {
-            Serial.println("Failed to read Relay2 state from Firebase!");
         }
     }
 
@@ -183,8 +140,6 @@ void handleFirebaseRelays() {
                 Firebase.setInt(firebaseData, "/SensorData/Relay3_Status", relayState);
                 Serial.println(relayState ? "Relay3 ON" : "Relay3 OFF");
             }
-        } else {
-            Serial.println("Failed to read Relay3 state from Firebase!");
         }
     }
 }
@@ -194,20 +149,16 @@ void handleScheduledRelay2() {
     int currentHour = timeClient.getHours();
     int currentMinute = timeClient.getMinutes();
 
-    if ((currentHour == 2 || currentHour == 8 || currentHour == 14 || currentHour == 20) && currentMinute == 0) {
-        if (!relay2State) {
-            relay2State = true;
-            digitalWrite(RELAY2, HIGH);
-            Firebase.setInt(firebaseData, "/SensorData/Relay2_Status", 1);
-            Serial.println("Relay2 ON (Scheduled)");
-        }
-    } else if ((currentHour == 4 || currentHour == 10 || currentHour == 16 || currentHour == 22) && currentMinute == 0) {
-        if (relay2State) {
-            relay2State = false;
-            digitalWrite(RELAY2, LOW);
-            Firebase.setInt(firebaseData, "/SensorData/Relay2_Status", 0);
-            Serial.println("Relay2 OFF (Scheduled)");
-        }
+    if ((currentHour == 2 || currentHour == 8 || currentHour == 14 || currentHour == 20) && currentMinute == 0 && !relay2State) {
+        relay2State = true;
+        digitalWrite(RELAY2, HIGH);
+        Firebase.setInt(firebaseData, "/SensorData/Relay2_Status", 1);
+        Serial.println("Relay2 ON (Scheduled)");
+    } else if ((currentHour == 4 || currentHour == 10 || currentHour == 16 || currentHour == 22) && currentMinute == 0 && relay2State) {
+        relay2State = false;
+        digitalWrite(RELAY2, LOW);
+        Firebase.setInt(firebaseData, "/SensorData/Relay2_Status", 0);
+        Serial.println("Relay2 OFF (Scheduled)");
     }
 }
 
