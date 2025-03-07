@@ -1,0 +1,9 @@
+{
+  "appId": "com.babulal85k.nodecontrol",
+  "appName": "NodeControl",
+  "webDir": "dist",
+  "server": {
+    "url": "https://shyamnivas.netlify.app/",
+    "cleartext": true
+  }
+}

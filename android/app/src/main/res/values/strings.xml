@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">NodeControl</string>
+    <string name="title_activity_main">NodeControl</string>
+    <string name="package_name">com.babulal85k.nodecontrol</string>
+    <string name="custom_url_scheme">com.babulal85k.nodecontrol</string>
+</resources>
