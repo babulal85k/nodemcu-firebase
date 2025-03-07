@@ -1,21 +1,14 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Keep all public classes & methods but allow ProGuard to optimize private/internal ones
+-keep public class your.package.name.** { public *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep Android-generated classes to avoid crashes
+-keep class your.package.name.BuildConfig { *; }
+-keep class your.package.name.R$* { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Keep model classes (if using Gson, Retrofit, etc.)
+-keep class your.package.name.models.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Allow ProGuard to optimize & shrink unused code
+-dontshrink
+-dontoptimize
+-dontobfuscate
