@@ -1,9 +1,8 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, onValue, set } from "firebase/database";
-import PropTypes from "prop-types";
 
-// Firebase Configuration (Ensure these are set in .env file)
+// Firebase Configuration
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -12,14 +11,13 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase (Outside component for performance)
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-function SensorData() {
+const SensorApp = () => {
   const [sensorData, setSensorData] = useState({
     Temperature: "N/A",
     Humidity: "N/A",
@@ -35,123 +33,56 @@ function SensorData() {
 
   useEffect(() => {
     const sensorRef = ref(db, "/SensorData");
-
-    const unsubscribe = onValue(
-      sensorRef,
-      (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          const updatedData = {
-            Temperature: data.Temperature ?? "N/A",
-            Humidity: data.Humidity ?? "N/A",
-            GasLevel: data.GasLevel ?? "N/A",
-            PIR: data.PIR ? "Motion Detected" : "No Motion",
-            Relay1: data.Relay1_Status ? "ON" : "OFF",
-            Relay2: data.Relay2_Status ? "ON" : "OFF",
-            Relay3: data.Relay3_Status ? "ON" : "OFF",
-          };
-
-          setSensorData(updatedData);
-
-          // Append new log with limit (max 50 logs)
-          setLogs((prevLogs) => [
-            ...prevLogs.slice(-49),
-            `[${new Date().toLocaleTimeString()}] Data Updated: ${JSON.stringify(updatedData)}`,
-          ]);
-        }
-      },
-      (error) => {
-        console.error("Firebase Read Error:", error);
-        setLogs((prevLogs) => [
-          ...prevLogs.slice(-49),
-          `[${new Date().toLocaleTimeString()}] Firebase Error: ${error.message}`,
-        ]);
+    const unsubscribe = onValue(sensorRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setSensorData({
+          Temperature: data.Temperature ?? "N/A",
+          Humidity: data.Humidity ?? "N/A",
+          GasLevel: data.GasLevel ?? "N/A",
+          PIR: data.PIR ? "Motion Detected" : "No Motion",
+          Relay1: data.Relay1_Status ? "ON" : "OFF",
+          Relay2: data.Relay2_Status ? "ON" : "OFF",
+          Relay3: data.Relay3_Status ? "ON" : "OFF",
+        });
       }
-    );
-
+    });
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
-  }, [logs]);
-
-  // Toggle Relay Function (useCallback to avoid re-renders)
-  const toggleRelay = useCallback(
-    (relay) => {
-      const newState = sensorData[relay] === "ON" ? 0 : 1;
-      set(ref(db, `/SensorData/${relay}_Status`), newState)
-        .then(() => {
-          console.log(`${relay} toggled successfully.`);
-          setLogs((prevLogs) => [
-            ...prevLogs.slice(-49),
-            `[${new Date().toLocaleTimeString()}] ${relay} toggled to ${newState ? "ON" : "OFF"}`,
-          ]);
-        })
-        .catch((error) => {
-          console.error(`Error toggling ${relay}:`, error);
-          setLogs((prevLogs) => [
-            ...prevLogs.slice(-49),
-            `[${new Date().toLocaleTimeString()}] Error toggling ${relay}: ${error.message}`,
-          ]);
-        });
-    },
-    [sensorData]
-  );
+  const toggleRelay = useCallback((relay) => {
+    const newState = sensorData[relay] === "ON" ? 0 : 1;
+    set(ref(db, `/SensorData/${relay}_Status`), newState);
+  }, [sensorData]);
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>🏠 Sensor Data</h1>
-      <div style={styles.dataBox}>
-        <SensorDisplay label="🌡 Temperature" value={`${sensorData.Temperature}°C`} />
-        <SensorDisplay label="💧 Humidity" value={`${sensorData.Humidity}%`} />
-        <SensorDisplay label="🔥 Gas Level" value={sensorData.GasLevel} />
-        <SensorDisplay label="🚶‍♂️ PIR Motion" value={sensorData.PIR} />
-        <RelayControl label="🔌 Relay 1" state={sensorData.Relay1} onToggle={() => toggleRelay("Relay1")} />
-        <RelayControl label="🔌 Relay 2" state={sensorData.Relay2} onToggle={() => toggleRelay("Relay2")} />
-        <RelayControl label="🔌 Relay 3" state={sensorData.Relay3} onToggle={() => toggleRelay("Relay3")} />
-      </div>
-
-      {/* Serial Monitor */}
-      <h2 style={styles.monitorTitle}>📟 Serial Monitor</h2>
-      <div style={styles.serialMonitor} ref={logRef}>
-        {logs.map((log, index) => (
-          <p key={index} style={styles.logText}>{log}</p>
-        ))}
+      <h1 style={styles.title}>🏠 Sensor Dashboard</h1>
+      <div style={styles.grid}>
+        <SensorCard label="🌡 Temperature" value={`${sensorData.Temperature}°C`} />
+        <SensorCard label="💧 Humidity" value={`${sensorData.Humidity}%`} />
+        <SensorCard label="🔥 Gas Level" value={sensorData.GasLevel} />
+        <SensorCard label="🚶 PIR Motion" value={sensorData.PIR} />
+        <RelayButton label="🔌 Relay 1" state={sensorData.Relay1} onToggle={() => toggleRelay("Relay1")} />
+        <RelayButton label="🔌 Relay 2" state={sensorData.Relay2} onToggle={() => toggleRelay("Relay2")} />
+        <RelayButton label="🔌 Relay 3" state={sensorData.Relay3} onToggle={() => toggleRelay("Relay3")} />
       </div>
     </div>
   );
-}
-
-// Reusable Sensor Display Component
-const SensorDisplay = ({ label, value }) => (
-  <p style={styles.sensorText}>
-    <strong>{label}:</strong> {value}
-  </p>
-);
-SensorDisplay.propTypes = {
-  label: PropTypes.string.isRequired,
-  value: PropTypes.string.isRequired,
 };
 
-// Reusable Relay Control Component
-const RelayControl = ({ label, state, onToggle }) => (
-  <div style={styles.relayContainer}>
-    <span style={styles.relayText}>
-      <strong>{label}:</strong> {state}
-    </span>
-    <button onClick={onToggle} style={styles.button}>Toggle</button>
+const SensorCard = ({ label, value }) => (
+  <div style={styles.card}>
+    <strong>{label}:</strong> {value}
   </div>
 );
-RelayControl.propTypes = {
-  label: PropTypes.string.isRequired,
-  state: PropTypes.string.isRequired,
-  onToggle: PropTypes.func.isRequired,
-};
 
-// Inline Styles
+const RelayButton = ({ label, state, onToggle }) => (
+  <button onClick={onToggle} style={{ ...styles.button, backgroundColor: state === "ON" ? "#28a745" : "#dc3545" }}>
+    {state === "ON" ? "🔅 ON" : "💡 OFF"}
+  </button>
+);
+
 const styles = {
   container: {
     fontFamily: "Arial, sans-serif",
@@ -159,71 +90,38 @@ const styles = {
     padding: "20px",
     backgroundColor: "#f4f4f4",
     borderRadius: "10px",
-    width: "95vw", // Prevents overflow
-    maxWidth: "600px", // Ensures proper layout
-    margin: "20px auto",
-    boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.2)",
-    wordWrap: "break-word",
-    overflowWrap: "break-word",
-    whiteSpace: "normal",
+    maxWidth: "400px",
+    margin: "auto",
+    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.2)",
   },
   title: {
-    color: "#333",
+    fontSize: "20px",
+    marginBottom: "15px",
   },
-  dataBox: {
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: "10px",
+  },
+  card: {
     backgroundColor: "#fff",
     padding: "15px",
-    borderRadius: "8px",
-    boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.1)",
-    marginTop: "10px",
-  },
-  sensorText: {
-    fontSize: "16px",
-    margin: "5px 0",
-  },
-  monitorTitle: {
-    marginTop: "20px",
-    fontSize: "18px",
-    color: "#444",
-  },
-  serialMonitor: {
-    backgroundColor: "#222",
-    color: "#0f0",
-    fontFamily: "monospace",
-    fontSize: "14px",
-    padding: "10px",
-    borderRadius: "5px",
-    height: "150px",
-    overflowY: "auto", // **Fixed: Allows scrolling**
-    textAlign: "left",
-    width: "100%",
-    maxWidth: "100%",
-  },
-  logText: {
-    margin: "2px 0",
-  },
-  relayContainer: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: "10px",
-  },
-  relayText: {
+    borderRadius: "12px",
+    boxShadow: "0px 2px 6px rgba(0, 0, 0, 0.1)",
+    textAlign: "center",
     fontSize: "16px",
   },
   button: {
-    padding: "5px 10px",
-    marginLeft: "10px",
-    cursor: "pointer",
-    backgroundColor: "#007BFF",
-    color: "#fff",
+    padding: "12px",
+    borderRadius: "25px",
     border: "none",
-    borderRadius: "5px",
-    transition: "0.3s",
+    cursor: "pointer",
+    fontWeight: "bold",
+    fontSize: "16px",
+    color: "#fff",
+    width: "100px",
+    margin: "auto",
   },
 };
 
-
-
-
-export default SensorData;
+export default SensorApp;
