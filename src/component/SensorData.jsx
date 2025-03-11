@@ -1,23 +1,9 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, onValue, set } from "firebase/database";
+import { useEffect, useState, useRef, useCallback } from "react";
+import PropTypes from "prop-types";
+import { db } from "../firebase";
+import { ref, onValue, set } from "firebase/database";
 
-// Firebase Configuration
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-const SensorApp = () => {
+const SensorData = () => {
   const [sensorData, setSensorData] = useState({
     Temperature: "N/A",
     Humidity: "N/A",
@@ -28,7 +14,6 @@ const SensorApp = () => {
     Relay3: "OFF",
   });
 
-  const [logs, setLogs] = useState([]);
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -71,18 +56,37 @@ const SensorApp = () => {
   );
 };
 
+// Prop Types for Validation
+SensorData.propTypes = {};
+
+// Sensor Card Component
 const SensorCard = ({ label, value }) => (
   <div style={styles.card}>
     <strong>{label}:</strong> {value}
   </div>
 );
 
+// PropTypes for SensorCard
+SensorCard.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.string.isRequired,
+};
+
+// Relay Button Component
 const RelayButton = ({ label, state, onToggle }) => (
   <button onClick={onToggle} style={{ ...styles.button, backgroundColor: state === "ON" ? "#28a745" : "#dc3545" }}>
     {state === "ON" ? "🔅 ON" : "💡 OFF"}
   </button>
 );
 
+// PropTypes for RelayButton
+RelayButton.propTypes = {
+  label: PropTypes.string.isRequired,
+  state: PropTypes.string.isRequired,
+  onToggle: PropTypes.func.isRequired,
+};
+
+// Styling Object
 const styles = {
   container: {
     fontFamily: "Arial, sans-serif",
@@ -124,4 +128,4 @@ const styles = {
   },
 };
 
-export default SensorApp;
+export default SensorData;

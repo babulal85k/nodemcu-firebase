@@ -1,14 +1,15 @@
-import './App.css'
-import SensorData from './component/SensorData'
+import { useState } from "react";
+import Login from "./component/Login";
+import SensorData from "./component/SensorData";
 
-function App() {
+const App = () => {
+  const [user, setUser] = useState(null);
 
   return (
-    <>
-      <h1>React App</h1>
-      <SensorData />
-    </>
-  )
-}
+    <div>
+      {user ? <SensorData /> : <Login setUser={setUser} />}
+    </div>
+  );
+};
 
-export default App
+export default App;
