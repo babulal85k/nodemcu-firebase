@@ -1,9 +1,9 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, onValue, set } from "firebase/database";
 import PropTypes from "prop-types";
 
-// Firebase Configuration (Move to .env for security)
+// Firebase Configuration (Ensure these are set in .env file)
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -15,7 +15,7 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
+// Initialize Firebase (Outside component for performance)
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
@@ -30,8 +30,8 @@ function SensorData() {
     Relay3: "OFF",
   });
 
-  const [logs, setLogs] = useState([]); // Stores Serial Monitor logs
-  const logRef = useRef(null); // Ref for auto-scrolling
+  const [logs, setLogs] = useState([]);
+  const logRef = useRef(null);
 
   useEffect(() => {
     const sensorRef = ref(db, "/SensorData");
@@ -53,18 +53,18 @@ function SensorData() {
 
           setSensorData(updatedData);
 
-          // Append new log
+          // Append new log with limit (max 50 logs)
           setLogs((prevLogs) => [
-            ...prevLogs,
+            ...prevLogs.slice(-49),
             `[${new Date().toLocaleTimeString()}] Data Updated: ${JSON.stringify(updatedData)}`,
           ]);
         }
       },
       (error) => {
-        console.error("Error reading from Firebase:", error);
+        console.error("Firebase Read Error:", error);
         setLogs((prevLogs) => [
-          ...prevLogs,
-          `[${new Date().toLocaleTimeString()}] Error: ${error.message}`,
+          ...prevLogs.slice(-49),
+          `[${new Date().toLocaleTimeString()}] Firebase Error: ${error.message}`,
         ]);
       }
     );
@@ -73,30 +73,33 @@ function SensorData() {
   }, []);
 
   useEffect(() => {
-    // Auto-scroll to latest log
     if (logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [logs]);
 
-  const toggleRelay = (relay) => {
-    const newState = sensorData[relay] === "ON" ? 0 : 1;
-    set(ref(db, `/SensorData/${relay}_Status`), newState)
-      .then(() => {
-        console.log(`${relay} toggled successfully.`);
-        setLogs((prevLogs) => [
-          ...prevLogs,
-          `[${new Date().toLocaleTimeString()}] ${relay} toggled to ${newState ? "ON" : "OFF"}`,
-        ]);
-      })
-      .catch((error) => {
-        console.error(`Error toggling ${relay}:`, error);
-        setLogs((prevLogs) => [
-          ...prevLogs,
-          `[${new Date().toLocaleTimeString()}] Error toggling ${relay}: ${error.message}`,
-        ]);
-      });
-  };
+  // Toggle Relay Function (useCallback to avoid re-renders)
+  const toggleRelay = useCallback(
+    (relay) => {
+      const newState = sensorData[relay] === "ON" ? 0 : 1;
+      set(ref(db, `/SensorData/${relay}_Status`), newState)
+        .then(() => {
+          console.log(`${relay} toggled successfully.`);
+          setLogs((prevLogs) => [
+            ...prevLogs.slice(-49),
+            `[${new Date().toLocaleTimeString()}] ${relay} toggled to ${newState ? "ON" : "OFF"}`,
+          ]);
+        })
+        .catch((error) => {
+          console.error(`Error toggling ${relay}:`, error);
+          setLogs((prevLogs) => [
+            ...prevLogs.slice(-49),
+            `[${new Date().toLocaleTimeString()}] Error toggling ${relay}: ${error.message}`,
+          ]);
+        });
+    },
+    [sensorData]
+  );
 
   return (
     <div style={styles.container}>
@@ -156,9 +159,13 @@ const styles = {
     padding: "20px",
     backgroundColor: "#f4f4f4",
     borderRadius: "10px",
-    maxWidth: "500px",
+    width: "95vw", // Prevents overflow
+    maxWidth: "600px", // Ensures proper layout
     margin: "20px auto",
     boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.2)",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    whiteSpace: "normal",
   },
   title: {
     color: "#333",
@@ -168,6 +175,11 @@ const styles = {
     padding: "15px",
     borderRadius: "8px",
     boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.1)",
+    marginTop: "10px",
+  },
+  sensorText: {
+    fontSize: "16px",
+    margin: "5px 0",
   },
   monitorTitle: {
     marginTop: "20px",
@@ -182,8 +194,10 @@ const styles = {
     padding: "10px",
     borderRadius: "5px",
     height: "150px",
-    overflowY: "auto",
+    overflowY: "auto", // **Fixed: Allows scrolling**
     textAlign: "left",
+    width: "100%",
+    maxWidth: "100%",
   },
   logText: {
     margin: "2px 0",
@@ -201,7 +215,15 @@ const styles = {
     padding: "5px 10px",
     marginLeft: "10px",
     cursor: "pointer",
+    backgroundColor: "#007BFF",
+    color: "#fff",
+    border: "none",
+    borderRadius: "5px",
+    transition: "0.3s",
   },
 };
+
+
+
 
 export default SensorData;
